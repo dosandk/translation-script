@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <style>
+    *[contenteditable="true"] {
+      outline: 1px dotted cornflowerblue;
+    }
+
+    *[contenteditable="true"]::after {
+      content: ' ✎';
+    }
+  </style>
+</head>
+<body>
+
+<script>
+  const getTranslations = async () => {
+      console.error('getTranslations');
+      const response = await fetch('http://localhost:9080/locales/en/index.json');
+      const data = await response.json();
+
+      console.error('data', data);
+
+      const template = data => {
+          console.error('data', data);
+          return `
+            <div>
+            <button id="btn-enable">Enable editable mode</button>
+            <button id="btn-disable">Disable editable mode</button>
+
+            <div>
+              <a target="_blank" href="http://google.com" data-key="Some redirect url">${data['Some redirect url']}</a>
+            </div>
+            <div>
+              <span data-key="foo">${data['foo']}</span>
+            </div>
+
+            <div>
+              <div data-key="bar">
+                ${data['bar']}
+              </div>
+            </div>
+          </div>`;
+      };
+
+      return template(data);
+  };
+
+  getTranslations()
+    .then(template => {
+        document.body.innerHTML = template;
+
+        const makeContentEditable = event => {
+            console.error('click', event);
+            const [elementFirst] = event.target.childNodes;
+            const elementLast = event.target.childNodes[event.target.childNodes.length - 1];
+            const element = elementFirst || elementLast;
+
+            if (element.nodeName === '#text' && event.target.id !== 'btn-enable') {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const prevValue = element.textContent.trim();
+
+                if (!element.parentNode.dataset.i18nKey) {
+                    element.parentNode.dataset.i18nKey = prevValue;
+                }
+
+                event.target.setAttribute('contenteditable', true);
+
+                const blurCallback = function blurCallbackInner (blueEvent) {
+                    const nextValue = blueEvent.target.innerText.trim();
+
+                    event.target.removeAttribute('listener', true);
+                    event.target.removeAttribute('contenteditable');
+                    event.target.removeEventListener('blur', blurCallbackInner);
+
+                    const { key } = event.target.dataset;
+
+                    if (prevValue !== nextValue) {
+                        console.error(`${prevValue} --> ${nextValue}`);
+                        console.error({[`${key}`]: nextValue});
+
+                        fetch('http://localhost:3001/locales/add/en/ns', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                [key]: nextValue
+                            }),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        })
+                    }
+                };
+
+                if (!event.target.getAttribute('listener')) {
+                    event.target.addEventListener('blur', blurCallback);
+                    event.target.setAttribute('listener', true);
+                }
+
+                event.target.focus();
+            }
+        };
+
+        const $btnEnable = document.getElementById('btn-enable');
+        const $btnDisable = document.getElementById('btn-disable');
+
+        $btnEnable.addEventListener('click', () => {
+            console.error('enable');
+            document.addEventListener('click', makeContentEditable);
+            $btnEnable.removeAttribute('contenteditable');
+            $btnEnable.setAttribute('disabled', 'disabled');
+        });
+
+        $btnDisable.addEventListener('click', () => {
+            console.error('disable');
+            $btnEnable.removeAttribute('disabled');
+            document.removeEventListener('click', makeContentEditable);
+        });
+
+        function getSelectionText() {
+            var text = "";
+            if (window.getSelection) {
+                text = window.getSelection().toString();
+            } else if (document.selection && document.selection.type != "Control") {
+                text = document.selection.createRange().text;
+            }
+            return text;
+        }
+    });
+</script>
+</body>
+</html>
