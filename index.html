@@ -25,7 +25,6 @@
       const data = await response.json();
 
       console.error('data', data);
-
       const template = data => {
           console.error('data', data);
           return `
@@ -44,6 +43,14 @@
               <div data-key="bar">
                 ${data['bar']}
               </div>
+            </div>
+
+            <div>
+              <ul>
+                <li>something <br> something</li>
+                <li>Riba</li>
+                <li>lorem dkfj hfkwfk ksdfj lfjsd;kfj </li>
+              </ul>
             </div>
           </div>`;
       };
@@ -72,6 +79,13 @@
                 }
 
                 event.target.setAttribute('contenteditable', true);
+
+                const selection = window.getSelection();
+
+                selection.modify('extend', 'forward', 'documentboundary');
+                selection.modify('extend', 'backward', 'documentboundary');
+
+                console.error('selection', selection.toString());
 
                 const blurCallback = function blurCallbackInner (blueEvent) {
                     const nextValue = blueEvent.target.innerText.trim();
@@ -112,7 +126,7 @@
 
         $btnEnable.addEventListener('click', () => {
             console.error('enable');
-            document.addEventListener('click', makeContentEditable);
+            document.addEventListener('dblclick', makeContentEditable);
             $btnEnable.removeAttribute('contenteditable');
             $btnEnable.setAttribute('disabled', 'disabled');
         });
@@ -120,7 +134,7 @@
         $btnDisable.addEventListener('click', () => {
             console.error('disable');
             $btnEnable.removeAttribute('disabled');
-            document.removeEventListener('click', makeContentEditable);
+            document.removeEventListener('dblclick', makeContentEditable);
         });
 
         function getSelectionText() {
