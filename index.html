@@ -14,12 +14,40 @@
     *[contenteditable="true"]::after {
       content: ' ✎';
     }
+    .modal {
+      outline: 1px solid red;
+      width: 300px;
+      height: 100px;
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      margin: auto;
+      justify-content: center;
+      align-items: center;
+      display: flex;
+      padding: 10px;
+    }
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
-
+  <div id="root"></div>
+  <div id="modal" class="modal hidden">
+    <input id="translation-input" type="text" value=""/>
+    <div>
+      <button id="select-translation">Ok</button>
+    </div>
+  </div>
 <script>
-  const getTranslations = async () => {
+    const $modal = document.getElementById('modal');
+    const $modalInput = document.getElementById('translation-input');
+    const $selectTranslation = document.getElementById('select-translation');
+
+    const getTranslations = async () => {
       console.error('getTranslations');
       const response = await fetch('http://localhost:9080/locales/en/index.json');
       const data = await response.json();
@@ -31,25 +59,23 @@
             <div>
             <button id="btn-enable">Enable editable mode</button>
             <button id="btn-disable">Disable editable mode</button>
-
+            <br><br><br>
             <div>
               <a target="_blank" href="http://google.com" data-key="Some redirect url">${data['Some redirect url']}</a>
             </div>
             <div>
-              <span data-key="foo">${data['foo']}</span>
+              <span data-key="sun">${data['sun']}</span>
             </div>
 
             <div>
-              <div data-key="bar">
-                ${data['bar']}
+              <div data-key="table">
+                ${data['table']}
               </div>
             </div>
 
             <div>
               <ul>
-                <li>something <br> something</li>
-                <li>Riba</li>
-                <li>lorem dkfj hfkwfk ksdfj lfjsd;kfj </li>
+                <li data-key="beautiful flower">${data['beautiful flower']}</li>
               </ul>
             </div>
           </div>`;
@@ -60,13 +86,16 @@
 
   getTranslations()
     .then(template => {
-        document.body.innerHTML = template;
+        const $root = document.getElementById('root');
+        $root.innerHTML = template;
+
+        let currentElement = null;
 
         const makeContentEditable = event => {
             console.error('click', event);
             const [elementFirst] = event.target.childNodes;
             const elementLast = event.target.childNodes[event.target.childNodes.length - 1];
-            const element = elementFirst || elementLast;
+            const element = elementFirst || elementLast || {};
 
             if (element.nodeName === '#text' && event.target.id !== 'btn-enable') {
                 event.preventDefault();
@@ -74,18 +103,37 @@
 
                 const prevValue = element.textContent.trim();
 
-                if (!element.parentNode.dataset.i18nKey) {
-                    element.parentNode.dataset.i18nKey = prevValue;
-                }
-
                 event.target.setAttribute('contenteditable', true);
+                currentElement = event.target;
 
                 const selection = window.getSelection();
 
                 selection.modify('extend', 'forward', 'documentboundary');
                 selection.modify('extend', 'backward', 'documentboundary');
 
-                console.error('selection', selection.toString());
+                const text = selection.toString();
+                console.error('text', text);
+
+                fetch('http://localhost:3001/translate', {
+                    method: 'POST',
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(
+                        {
+                            text
+                        }
+                    )
+                  })
+                  .then(response => response.json())
+                  .then(data => {
+                      console.error('data', data);
+                      $modal.classList.remove('hidden');
+                      $modalInput.value = data.translation;
+                  })
+                  .catch(error =>{
+                      console.error('error', error);
+                  });
 
                 const blurCallback = function blurCallbackInner (blueEvent) {
                     const nextValue = blueEvent.target.innerText.trim();
@@ -137,15 +185,35 @@
             document.removeEventListener('dblclick', makeContentEditable);
         });
 
-        function getSelectionText() {
-            var text = "";
-            if (window.getSelection) {
-                text = window.getSelection().toString();
-            } else if (document.selection && document.selection.type != "Control") {
-                text = document.selection.createRange().text;
+        document.addEventListener('click', event => {
+            const { target } = event;
+
+            if (!target.classList.contains('modal') && !target.closest('.modal')) {
+                $modal.classList.add('hidden');
             }
-            return text;
-        }
+        });
+
+        $selectTranslation.addEventListener('click', () => {
+            currentElement.innerText = $modalInput.value;
+
+            const {key} = currentElement.dataset;
+
+            fetch('http://localhost:3001/locales/add/en/ns', {
+                method: 'POST',
+                body: JSON.stringify({
+                    [key]: $modalInput.value
+                }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(() => {
+                $modal.classList.add('hidden');
+            })
+            .catch(error => {
+                console.error('error', error);
+            })
+        });
     });
 </script>
 </body>
