@@ -28,6 +28,7 @@
       align-items: center;
       display: flex;
       padding: 10px;
+      background: orange;
     }
     .hidden {
       display: none;
@@ -48,11 +49,11 @@
     const $selectTranslation = document.getElementById('select-translation');
 
     const getTranslations = async () => {
-      console.error('getTranslations');
       const response = await fetch('http://localhost:9080/locales/en/index.json');
       const data = await response.json();
 
       console.error('data', data);
+
       const template = data => {
           console.error('data', data);
           return `
@@ -60,11 +61,13 @@
             <button id="btn-enable">Enable editable mode</button>
             <button id="btn-disable">Disable editable mode</button>
             <br><br><br>
-            <div>
-              <a target="_blank" href="http://google.com" data-key="Some redirect url">${data['Some redirect url']}</a>
-            </div>
+
             <div>
               <span data-key="sun">${data['sun']}</span>
+            </div>
+
+            <div>
+              <span data-key="dog">${data['dog']}</span>
             </div>
 
             <div>
@@ -77,6 +80,10 @@
               <ul>
                 <li data-key="beautiful flower">${data['beautiful flower']}</li>
               </ul>
+            </div>
+
+            <div>
+              <a target="_blank" href="http://google.com" data-key="Some redirect url">${data['Some redirect url']}</a>
             </div>
           </div>`;
       };
